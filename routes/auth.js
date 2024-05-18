@@ -25,6 +25,15 @@ router.put(
   authController.signup
 );
 
+router.post(
+  "/login",
+  [
+    body("email")
+      .isEmail()
+      .withMessage("Please enter a valid email"),
+    body("password").trim().isLength({ min: 5 }),
+  ],
+  authController.login
+);
+
 module.exports = router;
-
-

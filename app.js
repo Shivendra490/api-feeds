@@ -33,7 +33,7 @@ const fileFilter = (req, file, cb) => {
     cb(null, false);
   }
 };
-// app.use(bodyParser.urlencoded({extended:false}))
+app.use(bodyParser.urlencoded({extended:false}))
 app.use(bodyParser.json());
 app.use(
   multer({ storage: fileStorage, fileFilter: fileFilter }).single("image")
@@ -57,6 +57,11 @@ app.use((error, req, res, next) => {
   console.log('here in errorhandling',error)
   res.status(status).json({ message: message, data: data });
 });
+
+//Route Not found handler
+app.use((req,res,next)=>{
+  res.status(404).json({message:"Page Not Found"})
+})
 
 mongoose
   .connect(process.env.DB_URI)
