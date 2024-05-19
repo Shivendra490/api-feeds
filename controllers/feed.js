@@ -1,10 +1,11 @@
 const fs = require("fs");
 const path = require("path");
 const Post = require("../models/post");
+const User = require("../models/user");
 const { validationResult } = require("express-validator");
 
 exports.getPosts = (req, res, next) => {
-  // res.setHeader("Content-Type", "application/json");
+  
   const currentPage = req.query.page || 1;
   const perPage = 2;
   let totalItems;
@@ -13,17 +14,16 @@ exports.getPosts = (req, res, next) => {
     .then((count) => {
       totalItems = count;
       return Post.find()
+        .populate("creator", "name") //this will include only _id,and name of user ,if you did not give name then it will fetch all details of user
         .skip((currentPage - 1) * perPage)
         .limit(perPage);
     })
     .then((posts) => {
-      res
-        .status(200)
-        .json({
-          message: "Fectched posts successfully",
-          posts: posts,
-          totalItems: totalItems,
-        });
+      res.status(200).json({
+        message: "Fectched posts successfully",
+        posts: posts,
+        totalItems: totalItems,
+      });
     })
     .catch((err) => {
       if (!err.statusCode) {
@@ -35,6 +35,7 @@ exports.getPosts = (req, res, next) => {
 
 exports.createPost = (req, res, next) => {
   const errors = validationResult(req);
+  let creator;
 
   if (!errors.isEmpty()) {
     const error = new Error("validation failed , entered data is incorrect");
@@ -51,19 +52,34 @@ exports.createPost = (req, res, next) => {
   const title = req.body.title;
   const content = req.body.content;
   //store in db
+
   const post = new Post({
     title: title,
     // imageUrl: "images/cartoon.jpeg",
     imageUrl: imageUrl,
     content: content,
-    creator: { name: "Shiv" },
+    creator: req.userId,
   });
   post
     .save()
-    .then((post) => {
+    .then((pst) => {
+      return User.findById(req.userId);
+    })
+    .then((user) => {
+      if (!user) {
+        const err = new Error("something went wrong");
+        throw err;
+      }
+      creator = user;
+      user.posts.push(post); //we can also use post id but here mongoose will get pull id from post and save postId in user collection in db
+
+      return user.save();
+    })
+    .then((result) => {
       res.status(201).json({
         message: "Post created successfully",
         post: post,
+        creator: { _id: creator._id, name: creator.name },
       });
     })
     .catch((err) => {
@@ -122,6 +138,11 @@ exports.updatePost = (req, res, next) => {
         error.statusCode = 404;
         throw error;
       }
+      if (post.creator.toString() !== req.userId.toString()) {
+        const error = new Error("Not Authorized");
+        error.statusCode = 403;
+        throw error;
+      }
       console.log("imgurls", imageUrl, post.imageUrl);
       if (imageUrl !== post.imageUrl) {
         clearImage(post.imageUrl);
@@ -154,8 +175,20 @@ exports.deletePost = (req, res, next) => {
         error.statusCode = 404;
         throw error;
       }
+      if (post.creator.toString() !== req.userId.toString()) {
+        const error = new Error("Not Authorized");
+        error.statusCode = 403;
+        throw error;
+      }
       clearImage(post.imageUrl);
       return Post.findByIdAndDelete(postId);
+    })
+    .then((result) => {
+      return User.findById(req.userId);
+    })
+    .then((user) => {
+      user.posts.pull(postId);
+      return user.save();
     })
     .then((result) => {
       res.status(200).json({ message: "Post deleted successfully" });
