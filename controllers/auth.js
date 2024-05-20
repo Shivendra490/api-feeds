@@ -1,6 +1,6 @@
 const bcrypt = require("bcryptjs");
-const jwt=require("jsonwebtoken")
-const dotenv=require('dotenv').config()
+const jwt = require("jsonwebtoken");
+const dotenv = require("dotenv").config();
 const { validationResult } = require("express-validator");
 const User = require("../models/user");
 
@@ -41,7 +41,7 @@ exports.signup = (req, res, next) => {
 };
 
 exports.login = (req, res, next) => {
-    const errors = validationResult(req);
+  const errors = validationResult(req);
 
   if (!errors.isEmpty()) {
     const error = new Error("Validation Failed");
@@ -53,10 +53,10 @@ exports.login = (req, res, next) => {
   }
   const { email, password } = req.body;
   let loadedUser;
-//   if (!email || !password) {
-//     return res.status(422).json({ message: "All fields are mandatory" });
-//   }
-    
+  //   if (!email || !password) {
+  //     return res.status(422).json({ message: "All fields are mandatory" });
+  //   }
+
   const user = User.findOne({ email })
     .then((user) => {
       if (!user) {
@@ -64,7 +64,7 @@ exports.login = (req, res, next) => {
         err.statusCode = 401;
         throw err;
       }
-      loadedUser=user;
+      loadedUser = user;
       return bcrypt.compare(password, user.password);
     })
     .then((isEqual) => {
@@ -73,9 +73,71 @@ exports.login = (req, res, next) => {
         err.statusCode = 401;
         throw err;
       }
-      const token=jwt.sign({email:loadedUser.email,userId:loadedUser._id},process.env.PRIVATE_KEY,{expiresIn:'1h'})
+      const token = jwt.sign(
+        { email: loadedUser.email, userId: loadedUser._id },
+        process.env.PRIVATE_KEY,
+        { expiresIn: "1h" }
+      );
 
-      res.status(200).json({ message: "login successful" ,token:token,userId:loadedUser._id.toString()});
+      res
+        .status(200)
+        .json({
+          message: "login successful",
+          token: token,
+          userId: loadedUser._id.toString(),
+        });
+    })
+    .catch((err) => {
+      if (!err.statusCode) {
+        err.statusCode = 500;
+      }
+      next(err);
+    });
+};
+
+exports.getStatus = (req, res, next) => {
+  
+  User.findById(req.userId)
+    .then(user=>{
+      if (!user) {
+        const err = new Error("user does not exist");
+        err.statusCode = 404;
+        throw err;
+      }
+      console.log('107',user)
+      res.status(200).json({
+        status:user.status
+      })
+    })
+    
+    .catch((err) => {
+      if (!err.statusCode) {
+        err.statusCode = 500;
+      }
+      next(err);
+    });
+};
+
+
+exports.updateStatus = (req, res, next) => {
+ 
+  const status=req.body.status
+  console.log('jlskdjlkslkfslkjfklsjfklsjklfj',req.body)
+  User.findById(req.userId)
+    .then(user=>{
+      if (!user) {
+        const err = new Error("user does not exist");
+        err.statusCode = 404;
+        throw err;
+      }
+      user.status=status
+      return user.save()
+    })
+    .then(result=>{
+      res.status(200).json({
+        message:'updated Status successfully',
+        status:status
+      })
     })
     .catch((err) => {
       if (!err.statusCode) {
