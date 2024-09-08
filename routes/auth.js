@@ -39,6 +39,8 @@ router.post(
 
 router.get("/status",verifyAuth,authController.getStatus)
 
-router.patch("/status",verifyAuth,authController.updateStatus)
+router.patch("/status",verifyAuth, [
+  body("status").trim().not().isEmpty(),
+],authController.updateStatus)
 
 module.exports = router;

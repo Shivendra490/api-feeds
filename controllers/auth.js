@@ -120,7 +120,14 @@ exports.getStatus = (req, res, next) => {
 
 
 exports.updateStatus = (req, res, next) => {
- 
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    const error = new Error("status validation failed");
+    error.statusCode = 422;
+    error.data = errors.array();
+    throw error;
+  }
   const status=req.body.status
   console.log('jlskdjlkslkfslkjfklsjfklsjklfj',req.body)
   User.findById(req.userId)
